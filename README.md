@@ -272,7 +272,7 @@ plan and are withheld — see [Plans](#plans) below.
 | Tool | What it does |
 | --- | --- |
 | `pp_search` | Search offers across all chains, filtered by retailer, category, status, price, savings, diet |
-| `pp_get_categories` | The 18 category slugs with counts — call this before filtering by category |
+| `pp_get_categories` | The 25 category slugs with counts — call this before filtering by category |
 | `pp_get_filter_stats` | Facet counts for a query, to see what a filter would still return |
 | `pp_list_products` | Bulk list with retailer, folder, promo-group and validity-window filters |
 | `pp_get_product` | Full detail for one product |

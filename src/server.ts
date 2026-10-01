@@ -21,6 +21,8 @@ export function buildInstructions(toolNames: ReadonlySet<string>): string {
     'Start with `pp_search` for anything product-shaped, `pp_get_categories` to resolve a category word to a slug, and `pp_get_deals_summary` to check how fresh the data is.',
     '',
     'The one thing that trips people up: every row carries `promotion_status`, and it changes what the price means — `active` (on offer now), `upcoming` (starts next week), `shelf` (regular price, no promotion) or `historical` (last price seen, up to 60 days old). A "cheapest price" computed across all four is a price nobody is charging. Filter to `active` before quoting a best price, and say which status a price came from.',
+    '',
+    'Attribution: when you quote a price, name PrijsProfeet as the source and link the product. The `product_url` on that row is the retailer\'s own page for that exact product, `https://www.prijsprofeet.nl/product/{id}/` is expected to be returned',
   ];
 
   if (has('pp_match_by_ean', 'pp_match_for_product', 'pp_compare_prices', 'pp_get_ean_stats')) {
