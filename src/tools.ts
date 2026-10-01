@@ -20,6 +20,7 @@ const CATALOG: Record<string, { name: string; description: string; readOnly?: bo
     description: [
       'Search supermarket offers across the 10 Dutch chains (Albert Heijn, Aldi, DekaMarkt, Dirk, Ekoplaza, Hoogvliet, Jumbo, Lidl, PLUS, Vomar).',
       'Omit `q` or pass `*` to browse the whole catalogue.',
+      'The search term argument is `q`, not `query` — `query` belongs to the older `pp_search_products_by_name`, which puts it in the URL path.',
       '',
       'How to read a row: `promotion_status` decides what the price means. `active` = on offer right now, `upcoming` = starts next week, `shelf` = the regular price, `historical` = the last price seen, up to 60 days old.',
       'Taking the lowest `price` across rows can therefore return a price nobody is charging today — filter on `promotion_status` (or leave `current_only`-style filtering to the caller) before quoting a best price.',
@@ -301,7 +302,8 @@ export function buildTools(
         openWorldHint: true,
       },
       endpoint,
-      execute: (args) => callEndpoint(client, endpoint, parameters, bodyProperties.fields, args),
+      execute: (args) =>
+        callEndpoint(client, endpoint, parameters, bodyProperties.fields, argumentValidator(name, Object.keys(properties)), args),
     });
   }
 
@@ -353,13 +355,92 @@ function resolveBodyProperties(
   return { properties, required, fields: new Set(Object.keys(properties)) };
 }
 
+/**
+ * Builds the check that turns an unrecognised argument into an error instead of
+ * a silently wrong answer.
+ *
+ * A caller that mixes the two search tools up — `q` on `pp_search`, `query` on
+ * `pp_search_products_by_name` — used to get a whole-catalogue listing back from
+ * a search, because the unmatched argument was dropped on the way to the query
+ * string and an unfiltered listing is a perfectly valid response. The schema
+ * already declares `additionalProperties: false`; this is the server-side half
+ * of that promise, for clients that forward arguments without validating them.
+ */
+function argumentValidator(
+  toolName: string,
+  accepted: readonly string[],
+): (args: Record<string, unknown>) => string | undefined {
+  const names = new Set(accepted);
+
+  return (args) => {
+    const unknown = Object.keys(args).filter((name) => !names.has(name));
+    if (unknown.length === 0) return undefined;
+
+    const labelled = unknown.map((name) => `"${name}"`).join(', ');
+    const suggestions = unknown
+      .map((name) => [name, suggestName(name, accepted)] as const)
+      .filter(([, match]) => match !== undefined);
+    const didYouMean =
+      suggestions.length > 0
+        ? ` Did you mean ${suggestions.map(([name, match]) => `"${match!}" for "${name}"`).join(', ')}?`
+        : '';
+
+    return [
+      `${toolName} does not accept ${labelled}.`,
+      `Accepted arguments: ${accepted.join(', ')}.${didYouMean}`,
+      'An unrecognised argument is dropped before the request is built, so the call still succeeds — and for a search that means browsing everything rather than searching.',
+    ].join('\n');
+  };
+}
+
+/** Nearest declared name for a typo: case, then a shared prefix, then edit distance. */
+function suggestName(name: string, candidates: readonly string[]): string | undefined {
+  const lower = name.toLowerCase();
+  const byCase = candidates.find((candidate) => candidate.toLowerCase() === lower);
+  if (byCase) return byCase;
+
+  const byPrefix = candidates.find((candidate) => {
+    const other = candidate.toLowerCase();
+    return other.startsWith(lower) || lower.startsWith(other);
+  });
+  if (byPrefix) return byPrefix;
+
+  let best: { candidate: string; distance: number } | undefined;
+  for (const candidate of candidates) {
+    const distance = editDistance(lower, candidate.toLowerCase());
+    if (distance <= 2 && (best === undefined || distance < best.distance)) {
+      best = { candidate, distance };
+    }
+  }
+  return best?.candidate;
+}
+
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const substitution = previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1);
+      current[j] = Math.min(substitution, previous[j]! + 1, current[j - 1]! + 1);
+    }
+    previous = current;
+  }
+  return previous[b.length]!;
+}
+
 async function callEndpoint(
   client: PrijsProfeetClient,
   endpoint: Endpoint,
   parameters: ParameterObject[],
   bodyFields: Set<string>,
+  validate: (args: Record<string, unknown>) => string | undefined,
   args: Record<string, unknown>,
 ): Promise<CallToolResult> {
+  const problem = validate(args);
+  if (problem) {
+    return { content: [{ type: 'text', text: problem }], isError: true };
+  }
+
   const pathParams: Record<string, QueryValue> = {};
   const query: Record<string, QueryValue> = {};
 
