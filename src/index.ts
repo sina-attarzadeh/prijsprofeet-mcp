@@ -9,7 +9,7 @@ import { loadConfig, type Config } from './config.js';
 import { PrijsProfeetClient } from './client.js';
 import { describeError, loadSpec } from './spec.js';
 import { createMcpServer } from './server.js';
-import { buildTools, type McpTool } from './tools.js';
+import { buildTools, NEVER_EXPOSED_ENDPOINTS, type McpTool } from './tools.js';
 
 const BANNED_USER_AGENT_TERMS = ['bot', 'crawler', 'spider', 'slurp'];
 
@@ -68,6 +68,7 @@ async function start(): Promise<void> {
   for (const name of excluded) {
     log(`withheld: ${name}`);
   }
+  log(`never exposed: ${[...NEVER_EXPOSED_ENDPOINTS].join(', ')}`);
   log(`api: ${config.baseUrl} (key ${config.apiKey ? 'configured' : 'absent — anonymous Gratis tier'})`);
 
   const keyNote = config.apiKey ? 'set' : 'not set (anonymous tier)';

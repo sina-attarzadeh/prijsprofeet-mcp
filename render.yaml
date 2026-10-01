@@ -36,7 +36,7 @@ services:
       # injected PORT when it is unset and falls back to 3000; setting it here
       # would override PORT and the service would deploy but never be reachable.
 
-      # 20 tools. Change to `pro` if you upgrade the PrijsProfeet key.
+      # 19 tools. Change to `pro` if you upgrade the PrijsProfeet key.
       - key: PRIJSPROFEET_PLAN
         value: free
 

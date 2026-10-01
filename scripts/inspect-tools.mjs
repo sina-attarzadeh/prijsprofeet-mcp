@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadConfig } from '../dist/config.js';
 import { PrijsProfeetClient } from '../dist/client.js';
-import { buildTools } from '../dist/tools.js';
+import { buildTools, NEVER_EXPOSED_ENDPOINTS } from '../dist/tools.js';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const specPath = [join(root, 'src', 'openapi.json'), join(root, 'dist', 'openapi.json')].find(existsSync);
@@ -38,4 +38,5 @@ if (asJson) {
   if (excluded.length > 0) {
     process.stdout.write(`withheld on the ${config.plan} plan: ${excluded.join(', ')}\n`);
   }
+  process.stdout.write(`never exposed: ${[...NEVER_EXPOSED_ENDPOINTS].join(', ')}\n`);
 }

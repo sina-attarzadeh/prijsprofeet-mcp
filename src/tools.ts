@@ -180,17 +180,6 @@ const CATALOG: Record<string, { name: string; description: string; readOnly?: bo
     description: 'The most recently started offers, capped at 30 rows.',
   },
 
-  'POST /api/v1/partner/signup': {
-    name: 'request_free_key',
-    description: [
-      'Request a free API key for an email address. A one-click link is mailed out; the key itself is never in the response.',
-      'The response is deliberately identical whether or not that address already has a key, so a success here never confirms someone is a customer.',
-      'Capped at 5 requests per hour per IP.',
-      'This has a real-world side effect — it emails a stranger. Only call it when the user has explicitly asked for it in this conversation.',
-    ].join('\n'),
-    readOnly: false,
-  },
-
   'GET /api/v1/partner/usage': {
     name: 'get_partner_usage',
     description:
@@ -228,6 +217,21 @@ export const PRO_PLAN_ENDPOINTS: ReadonlySet<string> = new Set([
   'GET /api/v1/products/{product_id}/price-history',
 ]);
 
+/**
+ * Endpoints this server never exposes, on any plan.
+ *
+ * `POST /api/v1/partner/signup` mints a PrijsProfeet key and mails it to an
+ * address the caller supplies. That is a write against a third party's
+ * production signup flow, reachable by anyone who can reach this server, and
+ * its whole effect is to email a stranger — so it is off by default rather
+ * than merely discouraged in the description. Withheld tools are the model
+ * spending a call discovering they 403; this one never appears in
+ * `tools/list` at all, and calling it by name returns `Unknown tool`.
+ */
+export const NEVER_EXPOSED_ENDPOINTS: ReadonlySet<string> = new Set([
+  'POST /api/v1/partner/signup',
+]);
+
 export interface BuildResult {
   tools: McpTool[];
   /** Tool names withheld because the configured plan does not cover them. */
@@ -246,6 +250,8 @@ export function buildTools(
   const used = new Set<string>();
 
   for (const endpoint of collectEndpoints(spec)) {
+    if (NEVER_EXPOSED_ENDPOINTS.has(endpoint.id)) continue;
+
     const curated = CATALOG[endpoint.id];
     const name = `${toolPrefix}_${curated?.name ?? fallbackName(endpoint)}`;
     if (used.has(name)) {

@@ -1,10 +1,14 @@
 # prijsprofeet-mcp
+Unofficial MCP server for the PrijsProfeet API
+
+> **Warning:** This is an unofficial project and is not developed, endorsed, or supported by PrijsProfeet.  
+> For official information, see the [PrijsProfeet API](https://www.prijsprofeet.nl/api) and [API voorwaarden](https://www.prijsprofeet.nl/api-voorwaarden).  
 
 A Dockerized [MCP](https://modelcontextprotocol.io) server for the [PrijsProfeet](https://www.prijsprofeet.nl) API:
 live offers from 10 Dutch supermarket chains (Albert Heijn, Aldi, DekaMarkt, Dirk, Ekoplaza, Hoogvliet,
 Jumbo, Lidl, PLUS, Vomar) as one normalised JSON API.
 
-The 26 tools are generated from the OpenAPI document at `https://www.prijsprofeet.nl/openapi.json` (a copy is
+The 25 tools are generated from the OpenAPI document at `https://www.prijsprofeet.nl/openapi.json` (a copy is
 bundled in the image, because the live one sits behind Cloudflare and is not reachable from a server). Argument
 schemas come from the spec; the tool names and descriptions are curated, because a good description is what stops
 a model from quoting a price nobody is charging.
@@ -262,7 +266,7 @@ what the attacker was spending.
 
 ## The tools
 
-20 tools are exposed by default, which is everything the API serves on a free key. The remaining 6 need the Pro
+19 tools are exposed by default, which is everything the API serves on a free key. The remaining 6 need the Pro
 plan and are withheld — see [Plans](#plans) below.
 
 | Tool | What it does |
@@ -281,7 +285,6 @@ plan and are withheld — see [Plans](#plans) below.
 | `pp_health_check` | Liveness of the API and its backing services |
 | `pp_get_sla_summary` | Availability per calendar month |
 | `pp_get_partner_usage` | Rate-limit usage and account info for the configured key |
-| `pp_request_free_key` | Emails a free API key to an address (has a real-world side effect) |
 
 ### Plans
 
@@ -289,8 +292,8 @@ plan and are withheld — see [Plans](#plans) below.
 
 | `PRIJSPROFEET_PLAN` | Tools |
 | --- | --- |
-| `free` (default) | 20 — the set above |
-| `pro` | 26 — adds the 6 below |
+| `free` (default) | 19 — the set above |
+| `pro` | 25 — adds the 6 below |
 
 The withheld six, all of which answer `403 This endpoint requires the Pro plan` on a free key:
 
@@ -309,13 +312,20 @@ the model to invent a workaround, so on the free plan it is not merely unused bu
 `Unknown tool`, and the server's instructions stop advertising the features. If you upgrade, set
 `PRIJSPROFEET_PLAN=pro` and restart; no rebuild needed.
 
+One endpoint is withheld on **every** plan, not just the free one: `POST /api/v1/partner/signup`, which mints a
+PrijsProfeet key and mails it to an address the caller supplies. It is a write against a third party's signup flow,
+reachable by anyone who can reach this server, and its net effect is to email a stranger — so it is off rather than
+merely discouraged in the description. That is why the spec describes 26 endpoints and this server exposes 25 on
+`pro`. There is no environment variable to re-enable it; `NEVER_EXPOSED_ENDPOINTS` in `src/tools.ts` is the only
+place it is named. Ask at https://www.prijsprofeet.nl/api if you need a key.
+
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `PRIJSPROFEET_API_KEY` | *(unset)* | Partner key, sent as `X-API-Key`. Unset means the anonymous Gratis tier. `PP_API_KEY` and `X_API_KEY` are accepted as aliases. |
 | `PRIJSPROFEET_BASE_URL` | `https://www.prijsprofeet.nl` | API origin |
-| `PRIJSPROFEET_PLAN` | `free` | `free` exposes 20 tools, `pro` exposes all 26 |
+| `PRIJSPROFEET_PLAN` | `free` | `free` exposes 19 tools, `pro` exposes all 25 |
 | `PRIJSPROFEET_TRANSPORT` | `stdio` | `stdio` (client launches the container) or `http` (serve a URL) |
 | `MCP_AUTH_TOKEN` | *(unset)* | Comma-separated bearer tokens for the http transport. Unset means **no auth** — the server starts and warns, so this is only safe on loopback. |
 | `PORT` | *(unset)* | Honoured when `PRIJSPROFEET_HTTP_PORT` is unset, which is what Render, Heroku and Fly inject |
@@ -349,7 +359,7 @@ match (Pro) falls back to name, brand and category. Those rows are indicative, n
 
 **Pro-gated tools are withheld, not broken.** On the default `free` plan the six tools in
 [Plans](#plans) are absent from `tools/list` entirely, so the model never spends a call discovering they 403. If
-you call one by name you get `Unknown tool`. Set `PRIJSPROFEET_PLAN=pro` to get all 26.
+you call one by name you get `Unknown tool`. Set `PRIJSPROFEET_PLAN=pro` to get all 25.
 
 **Do not put `bot`, `crawler`, `spider` or `slurp` in the User-Agent.** The API answers 403 to keyless requests
 that look like a scraper, which reads like an outage but is not one. The default User-Agent is clean; the server
