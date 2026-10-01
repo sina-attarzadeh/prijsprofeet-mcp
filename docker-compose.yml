@@ -1,0 +1,69 @@
+services:
+  # Default: MCP over stdio. The client owns the container's lifetime, so this
+  # is a `run`, never an `up`:
+  #
+  #   docker compose run --rm prijsprofeet-mcp
+  #
+  prijsprofeet-mcp:
+    build:
+      context: .
+    image: prijsprofeet-mcp:latest
+    init: true
+    environment:
+      PRIJSPROFEET_TRANSPORT: stdio
+      PRIJSPROFEET_API_KEY: ${PRIJSPROFEET_API_KEY:?set PRIJSPROFEET_API_KEY in .env}
+      PRIJSPROFEET_BASE_URL: ${PRIJSPROFEET_BASE_URL:-https://www.prijsprofeet.nl}
+      PRIJSPROFEET_TIMEOUT_MS: ${PRIJSPROFEET_TIMEOUT_MS:-30000}
+      PRIJSPROFEET_MAX_RETRIES: ${PRIJSPROFEET_MAX_RETRIES:-2}
+      PRIJSPROFEET_MAX_RESPONSE_BYTES: ${PRIJSPROFEET_MAX_RESPONSE_BYTES:-250000}
+      PRIJSPROFEET_PLAN: ${PRIJSPROFEET_PLAN:-free}
+      PRIJSPROFEET_REFRESH_SPEC: ${PRIJSPROFEET_REFRESH_SPEC:-0}
+      DEBUG: ${DEBUG:-0}
+    stdin_open: true
+    tty: false
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: "no"
+
+  # MCP over Streamable HTTP, for agents that want a URL instead of a command.
+  # Behind the `http` profile so it never starts by accident:
+  #
+  #   docker compose --profile http up -d prijsprofeet-mcp-http
+  #   -> http://localhost:3000/mcp
+  #
+  # Published on 127.0.0.1 on purpose. The API key lives server-side, so
+  # anything that can reach this URL spends your rate limit. Put it behind a
+  # tunnel or a private network before binding it to 0.0.0.0.
+  prijsprofeet-mcp-http:
+    build:
+      context: .
+    image: prijsprofeet-mcp:latest
+    profiles: ["http"]
+    init: true
+    ports:
+      - "${PRIJSPROFEET_HTTP_BIND:-127.0.0.1}:${PRIJSPROFEET_HTTP_PORT:-3000}:3000"
+    environment:
+      PRIJSPROFEET_TRANSPORT: http
+      PRIJSPROFEET_HTTP_HOST: 0.0.0.0
+      PRIJSPROFEET_API_KEY: ${PRIJSPROFEET_API_KEY:?set PRIJSPROFEET_API_KEY in .env}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
+      PRIJSPROFEET_BASE_URL: ${PRIJSPROFEET_BASE_URL:-https://www.prijsprofeet.nl}
+      PRIJSPROFEET_TIMEOUT_MS: ${PRIJSPROFEET_TIMEOUT_MS:-30000}
+      PRIJSPROFEET_MAX_RETRIES: ${PRIJSPROFEET_MAX_RETRIES:-2}
+      PRIJSPROFEET_MAX_RESPONSE_BYTES: ${PRIJSPROFEET_MAX_RESPONSE_BYTES:-250000}
+      PRIJSPROFEET_PLAN: ${PRIJSPROFEET_PLAN:-free}
+      PRIJSPROFEET_REFRESH_SPEC: ${PRIJSPROFEET_REFRESH_SPEC:-0}
+      DEBUG: ${DEBUG:-0}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped

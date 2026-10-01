@@ -1,0 +1,3726 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PrijsProfeet API",
+    "description": "Realtime supermarktaanbiedingen van 10 Nederlandse supermarkten, genormaliseerd naar één JSON-schema, plus cross-retailer prijsvergelijking. Exacte matching gaat op EAN. Niet elke keten publiceert die: levert `/match/*` geen EAN-match op, dan volgt een benadering op naam, merk en categorie (indicatief, geen productidentiteit). De actuele EAN-dekking per keten staat op [prijsprofeet.nl/api](https://www.prijsprofeet.nl/api#ean-dekking).\n\n**Geen API-key nodig** voor de publieke endpoints (zoeken, productdetail, aanbiedingen, categorieën). Zonder key gelden limieten *per endpoint, per IP*: 120/min op zoeken en productdetail, 30/min op de lijst- en bulk-endpoints.\n\n**Gratis key: 150/min op je key in plaats van je IP.** Zelf aan te vragen op [prijsprofeet.nl/api](https://www.prijsprofeet.nl/api#gratis-key) — mailadres, klik op de link, key. Bouw je server-side, dan deelt je hele gebruikersbestand anders één IP-limiet.\n\nEen `X-API-Key` is *verplicht* voor cross-retailer EAN-matching (`/match/*`) en prijsgeschiedenis (`/price-history`). Die zitten in het Pro-plan — zie [prijsprofeet.nl/api](https://www.prijsprofeet.nl/api).\n\n**Let op — de goedkoopste match is niet altijd te koop.** `/match/*` geeft ook acties terug die pas *volgende week* beginnen (ongeveer een kwart van de catalogus) en rijen met de prijs die een keten *recent* rekende. Dat is opzet — \"volgende week bij Jumbo goedkoper\" is precies wat je gebruiker wil weten. Maar een `min(price)` over alle matches levert dan een prijs op die vandaag niet bestaat. Elke match draagt `is_current_deal` (`true`/`false`), `promotion_status` (`active` | `upcoming` | `historical`) en `valid_from`/`valid_until`: filter of label daarop.\n\n**Noem jezelf in je User-Agent.** Niet verplicht, wel netjes — en het is de enige manier waarop we je kunnen bereiken bij een breaking change. Conventie (zoals GitHub): `NaamVanJeApp/1.0 (+https://jouw-site.nl)` of `NaamVanJeApp/1.0 (jij@voorbeeld.nl)`.\n\n**Let op — `bot` in je User-Agent.** Verzoeken *zonder* API-key waarvan de User-Agent `bot`, `crawler`, `spider` of `slurp` bevat krijgen een `403`. Dat is anti-scrapebescherming, geen storing. Kies een naam zonder die woorden — of pak een gratis key, dan geldt de blokkade niet.\n\nOp elk gebruik van deze API — met of zonder key — zijn de [API-voorwaarden](https://www.prijsprofeet.nl/api-voorwaarden) van toepassing.",
+    "termsOfService": "https://www.prijsprofeet.nl/api-voorwaarden",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "description": "Health check endpoint - verifies all services are operational",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "List Products",
+        "description": "List all products with optional filters and pagination.\n\n- **retailer**: Filter by retailer name\n- **folder_id**: Filter by folder ID\n- **is_promotional**: Filter promotional products only\n- **min_price**: Minimum price (inclusive)\n- **max_price**: Maximum price (inclusive)\n- **min_valid_from**: Only promotions starting on or after this date (YYYY-MM-DD)\n- **max_valid_from**: Only promotions starting on or before this date (YYYY-MM-DD)\n- **promo_group_id**: Only the products taking part in this joint promotion\n- **sort_by**: Sort field (extracted_at, price, name, product_id, valid_from)\n- **sort_order**: Sort order (asc or desc)\n- **page**: Page number (starts at 1)\n- **page_size**: Number of items per page (max 100)",
+        "operationId": "list_products_api_v1_products_get",
+        "parameters": [
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by retailer",
+              "title": "Retailer"
+            },
+            "description": "Filter by retailer"
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by folder ID",
+              "title": "Folder Id"
+            },
+            "description": "Filter by folder ID"
+          },
+          {
+            "name": "is_promotional",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter promotional products",
+              "title": "Is Promotional"
+            },
+            "description": "Filter promotional products"
+          },
+          {
+            "name": "min_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum price filter",
+              "title": "Min Price"
+            },
+            "description": "Minimum price filter"
+          },
+          {
+            "name": "max_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Maximum price filter",
+              "title": "Max Price"
+            },
+            "description": "Maximum price filter"
+          },
+          {
+            "name": "min_valid_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alleen acties die op of ná deze dag beginnen (YYYY-MM-DD)",
+              "title": "Min Valid From"
+            },
+            "description": "Alleen acties die op of ná deze dag beginnen (YYYY-MM-DD)"
+          },
+          {
+            "name": "max_valid_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alleen acties die op of vóór deze dag beginnen (YYYY-MM-DD)",
+              "title": "Max Valid From"
+            },
+            "description": "Alleen acties die op of vóór deze dag beginnen (YYYY-MM-DD)"
+          },
+          {
+            "name": "promo_group_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alleen producten uit deze actiegroep (zie `promo_group_id` op een product): alle deelnemers aan één gezamenlijke actie",
+              "title": "Promo Group Id"
+            },
+            "description": "Alleen producten uit deze actiegroep (zie `promo_group_id` op een product): alle deelnemers aan één gezamenlijke actie"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sorteerveld. Toegestaan: extracted_at, price, name, product_id, valid_from",
+              "default": "extracted_at",
+              "title": "Sort By"
+            },
+            "description": "Sorteerveld. Toegestaan: extracted_at, price, name, product_id, valid_from"
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sort order (asc, desc)",
+              "default": "desc",
+              "title": "Sort Order"
+            },
+            "description": "Sort order (asc, desc)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/{product_id}": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Get Product",
+        "description": "Get a specific product by ID.\n\n- **product_id**: the `product_id` of a promotion, or the stable\n  `base_product_id` published on every product response. A `product_id`\n  embeds the promotion week, so a re-promoted article gets a new one every\n  week; the base id is the key to store and to deduplicate on. Passing a\n  base id returns the promotion that is running now.",
+        "operationId": "get_product_api_v1_products__product_id__get",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/{product_id}/price-history": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Get Price History",
+        "description": "Get price history for a product from the price_history collection.",
+        "operationId": "get_price_history_api_v1_products__product_id__price_history_get",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Price History Api V1 Products  Product Id  Price History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/{product_id}/forecast": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Get Forecast",
+        "description": "Server-side backtested price forecast (\"Profeet voorspelt\").\n\nReturns the forecast dict, or null (HTTP 200) when there is none; the\n`X-Forecast-Reason` header then says why.",
+        "operationId": "get_forecast_api_v1_products__product_id__forecast_get",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Forecast Api V1 Products  Product Id  Forecast Get"
+                }
+              }
+            },
+            "headers": {
+              "X-Forecast-Reason": {
+                "description": "Only when the body is null: why there is no forecast. `no_price_history` (no history for this id), `too_few_promos` (fewer than two promotions to derive a rhythm from), `retailer_not_supported` (we do not publish forecasts for this chain because our track record there does not back them), `weak_backtest` (this product's own past promotions show no predictable rhythm), `error`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/search/{query}": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Search Products",
+        "description": "Search products by name.\n\n- **query**: Search query (product name)\n- **retailer**: Optional retailer filter\n- **page**: Page number (starts at 1)\n- **page_size**: Number of items per page (max 100)",
+        "operationId": "search_products_api_v1_products_search__query__get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Query"
+            }
+          },
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by retailer",
+              "title": "Retailer"
+            },
+            "description": "Filter by retailer"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/folder/{folder_id}": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Get Products By Folder",
+        "description": "Get all products from a specific folder.\n\n- **folder_id**: Folder identifier\n- **page**: Page number (starts at 1)\n- **page_size**: Number of items per page (max 1000)",
+        "operationId": "get_products_by_folder_api_v1_products_folder__folder_id__get",
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Folder Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 100,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/retailer/{retailer}": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Get Products By Retailer",
+        "description": "Get all products for a specific retailer.\n\n- **retailer**: Retailer name (aldi, albert_heijn, jumbo)\n- **page**: Page number (starts at 1)\n- **page_size**: Number of items per page (max 100)",
+        "operationId": "get_products_by_retailer_api_v1_products_retailer__retailer__get",
+        "parameters": [
+          {
+            "name": "retailer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Retailer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/promotional/all": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Get Promotional Products",
+        "description": "Get all promotional products, cheapest first.\n\n- **retailer**: Optional retailer filter\n- **min_valid_from**: Only promotions starting on or after this date (YYYY-MM-DD)\n- **max_valid_from**: Only promotions starting on or before this date (YYYY-MM-DD)\n- **page**: Page number (starts at 1)\n- **page_size**: Number of items per page (max 100)\n\n`total` is the number of promotions matching the filter, not the size of\nthis page: divide it by `page_size` to know how many pages to fetch. There\nis no result cap — paging to the last page returns the whole set, and the\nordering is stable across pages, so a full walk yields every promotion once.",
+        "operationId": "get_promotional_products_api_v1_products_promotional_all_get",
+        "parameters": [
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by retailer",
+              "title": "Retailer"
+            },
+            "description": "Filter by retailer"
+          },
+          {
+            "name": "min_valid_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alleen acties die op of ná deze dag beginnen (YYYY-MM-DD)",
+              "title": "Min Valid From"
+            },
+            "description": "Alleen acties die op of ná deze dag beginnen (YYYY-MM-DD)"
+          },
+          {
+            "name": "max_valid_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alleen acties die op of vóór deze dag beginnen (YYYY-MM-DD)",
+              "title": "Max Valid From"
+            },
+            "description": "Alleen acties die op of vóór deze dag beginnen (YYYY-MM-DD)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 50,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search Products",
+        "description": "Search products using Elasticsearch with fuzzy matching.\n\nAll products are promotions (scraped from bonus/aanbieding pages).\n\nFeatures:\n- Fuzzy search (handles typos)\n- Dutch language analysis\n- Relevance scoring\n- Fast performance\n- Filter by promotion status (active/upcoming/expired)\n- Filter by promotion type (percentage, multi_buy, one_plus_one, etc.)\n- Filter by minimum savings percentage\n- Sort by savings, unit price, or regular price\n- Filter by unified category\n- Filter by dietary tags (bio, glutenvrij, lactosevrij, vegan)\n- Filter by house brand vs A-merk (private_label)\n\nExample: `/api/v1/search?q=kaas&category=zuivel-eieren&promotion_status=active`\nExample: `/api/v1/search?q=*&promotion_type=multi_buy&min_savings=20&sort_by=savings_percentage:desc`\nExample: `/api/v1/search?q=melk&dietary=vegan,lactosevrij`\nExample: `/api/v1/search?q=*&category=zuivel-eieren&private_label=true`",
+        "operationId": "search_products_api_v1_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search query (use * to browse all)",
+              "title": "Q"
+            },
+            "description": "Search query (use * to browse all)"
+          },
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by retailer (aldi, albert_heijn, jumbo, lidl)",
+              "title": "Retailer"
+            },
+            "description": "Filter by retailer (aldi, albert_heijn, jumbo, lidl)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by unified category slug (e.g., groente-fruit, zuivel-eieren)",
+              "title": "Category"
+            },
+            "description": "Filter by unified category slug (e.g., groente-fruit, zuivel-eieren)"
+          },
+          {
+            "name": "promotion_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status: active, upcoming, or expired",
+              "title": "Promotion Status"
+            },
+            "description": "Filter by status: active, upcoming, or expired"
+          },
+          {
+            "name": "promotion_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by promotion type: percentage, multi_buy, one_plus_one, volume, limited, starting",
+              "title": "Promotion Type"
+            },
+            "description": "Filter by promotion type: percentage, multi_buy, one_plus_one, volume, limited, starting"
+          },
+          {
+            "name": "dietary",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated dietary tags: bio, glutenvrij, lactosevrij, vegan",
+              "title": "Dietary"
+            },
+            "description": "Comma-separated dietary tags: bio, glutenvrij, lactosevrij, vegan"
+          },
+          {
+            "name": "private_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter on the retailer's own house brand: true for huismerken only, false for A-merken only. Omit for no filter. A chain with no reliable brand signal (Lidl, Vomar) carries no rows on either side of this filter, rather than a guessed one.",
+              "title": "Private Label"
+            },
+            "description": "Filter on the retailer's own house brand: true for huismerken only, false for A-merken only. Omit for no filter. A chain with no reliable brand signal (Lidl, Vomar) carries no rows on either side of this filter, rather than a guessed one."
+          },
+          {
+            "name": "min_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum price",
+              "title": "Min Price"
+            },
+            "description": "Minimum price"
+          },
+          {
+            "name": "max_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Maximum price",
+              "title": "Max Price"
+            },
+            "description": "Maximum price"
+          },
+          {
+            "name": "min_savings",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 100,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum savings percentage (0-100)",
+              "title": "Min Savings"
+            },
+            "description": "Minimum savings percentage (0-100)"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sorteerveld, optioneel met richting: `veld` of `veld:asc` / `veld:desc`. Toegestaan: price, savings_percentage, product_id, savings_amount, original_price, discount_percentage, extracted_at, valid_until.",
+              "title": "Sort By"
+            },
+            "description": "Sorteerveld, optioneel met richting: `veld` of `veld:asc` / `veld:desc`. Toegestaan: price, savings_percentage, product_id, savings_amount, original_price, discount_percentage, extracted_at, valid_until."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Results per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Results per page"
+          },
+          {
+            "name": "include_all_retailers",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Ignore the caller's stored retailer preference and search every retailer. Only meaningful for browser callers carrying a `pp_uid` cookie — an API-key caller has no stored preference, so this is a no-op for integrations.",
+              "default": false,
+              "title": "Include All Retailers"
+            },
+            "description": "Ignore the caller's stored retailer preference and search every retailer. Only meaningful for browser callers carrying a `pp_uid` cookie — an API-key caller has no stored preference, so this is a no-op for integrations."
+          },
+          {
+            "name": "pp_uid",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Anonymous user ID cookie",
+              "title": "Pp Uid"
+            },
+            "description": "Anonymous user ID cookie"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Get Categories",
+        "description": "Get all available product categories with product counts.\n\nReturns unified category slugs, Dutch display names, product counts, and group.\nUse the slug value with the `category` parameter in /search.\n\nExample: `/api/v1/categories`",
+        "operationId": "get_categories_api_v1_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoriesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/filter-stats": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Get Filter Stats",
+        "description": "Get counts for filter dropdowns (faceted search).\n\nReturns counts for each retailer, promotion status, and category.\nWhen a search query is provided, counts reflect matching products only.\nUsed to display dynamic counts in filter dropdowns.\n\nExample: `/api/v1/filter-stats?q=spinazie&category=groente-fruit`",
+        "operationId": "get_filter_stats_api_v1_filter_stats_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search query to filter counts",
+              "title": "Q"
+            },
+            "description": "Search query to filter counts"
+          },
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by retailer",
+              "title": "Retailer"
+            },
+            "description": "Filter by retailer"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by category",
+              "title": "Category"
+            },
+            "description": "Filter by category"
+          },
+          {
+            "name": "promotion_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status",
+              "title": "Promotion Status"
+            },
+            "description": "Filter by status"
+          },
+          {
+            "name": "dietary",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated dietary tags: bio, glutenvrij, lactosevrij, vegan",
+              "title": "Dietary"
+            },
+            "description": "Comma-separated dietary tags: bio, glutenvrij, lactosevrij, vegan"
+          },
+          {
+            "name": "private_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter on house brand: true for huismerken, false for A-merken",
+              "title": "Private Label"
+            },
+            "description": "Filter on house brand: true for huismerken, false for A-merken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterStats"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/match/ean/{ean}": {
+      "get": {
+        "tags": [
+          "matching"
+        ],
+        "summary": "Find products by EAN across retailers",
+        "description": "Find products with the same EAN barcode at different retailers. **A GTIN does not identify a pack size**, and this endpoint is deliberately ungated — it has to answer \"everything carrying this barcode\". A chain files the single, the multipack and the tray under one EAN: 5000112658620 carries an Albert Heijn can at EUR 0.85, its 8-pack at EUR 5.19 and its 20-pack at EUR 13.19. So a min(price) over the rows can return the price of a different product. Gate on the `quantity` field, which is on every match, or call /match/product/{product_id}, which applies that gate for you. **`product_id` is `null` on a `shelf` row unless /products/{id} can actually answer it.** A shelf row is keyed on the retailer's own SKU, and that SKU often has no live product — it may never have been on promotion, or only in the past, and this endpoint serves live products only. Rather than hand you an id that 404s, the field is empty. The price, `ean`, `quantity` and `url` are still there: key on `ean`, which is also the key that works across retailers. **`promotion_status` can be `active`, `upcoming`, `shelf` or `historical`.** `shelf` is a retailer's current regular price; `historical` is the most recent price we observed there in the last 60 days when nothing more current is known — treat both as \"what you'd pay there roughly now\", not as a live promo. **`last_deal_price`/`last_deal_until` are almost always `null`.** They fill in only on a `historical` row whose last observation was itself a markdown (so `original_price > price` on that observation) — a retailer that never publishes a strikethrough price on promo rows (e.g. Aldi, Lidl) can never populate them, and even on chains that do, the window is narrow: the promo has to have just ended, before a newer, non-promotional observation supersedes it. A 0-hit sample across many EANs is expected, not a sign the fields are broken.",
+        "operationId": "match_by_ean_api_v1_match_ean__ean__get",
+        "parameters": [
+          {
+            "name": "ean",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 13,
+              "description": "EAN/GTIN barcode (8-13 digits)",
+              "title": "Ean"
+            },
+            "description": "EAN/GTIN barcode (8-13 digits)"
+          },
+          {
+            "name": "exclude_retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclude products from this retailer",
+              "title": "Exclude Retailer"
+            },
+            "description": "Exclude products from this retailer"
+          },
+          {
+            "name": "current_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only return matches you can actually buy today (is_current_deal=true). Default false, so the response also carries promotions that start next week and prices a retailer charged recently — deliberate, but a min(price) over all of them returns a price that does not exist yet. Costs coverage: on our own comparison cards, dropping the non-current rows left 29% of products with no match at all.",
+              "default": false,
+              "title": "Current Only"
+            },
+            "description": "Only return matches you can actually buy today (is_current_deal=true). Default false, so the response also carries promotions that start next week and prices a retailer charged recently — deliberate, but a min(price) over all of them returns a price that does not exist yet. Costs coverage: on our own comparison cards, dropping the non-current rows left 29% of products with no match at all."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Match By Ean Api V1 Match Ean  Ean  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/match/product/{product_id}": {
+      "get": {
+        "tags": [
+          "matching"
+        ],
+        "summary": "Find matching products at other retailers",
+        "description": "Find the same product at other retailers using EAN matching.",
+        "operationId": "match_for_product_api_v1_match_product__product_id__get",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Product ID to find matches for",
+              "title": "Product Id"
+            },
+            "description": "Product ID to find matches for"
+          },
+          {
+            "name": "include_same_retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include matches from same retailer",
+              "default": false,
+              "title": "Include Same Retailer"
+            },
+            "description": "Include matches from same retailer"
+          },
+          {
+            "name": "current_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only return matches you can actually buy today (is_current_deal=true). Default false, so the response also carries promotions that start next week and prices a retailer charged recently — deliberate, but a min(price) over all of them returns a price that does not exist yet. Costs coverage: on our own comparison cards, dropping the non-current rows left 29% of products with no match at all.",
+              "default": false,
+              "title": "Current Only"
+            },
+            "description": "Only return matches you can actually buy today (is_current_deal=true). Default false, so the response also carries promotions that start next week and prices a retailer charged recently — deliberate, but a min(price) over all of them returns a price that does not exist yet. Costs coverage: on our own comparison cards, dropping the non-current rows left 29% of products with no match at all."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Match For Product Api V1 Match Product  Product Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/match/compare/{ean}": {
+      "get": {
+        "tags": [
+          "matching"
+        ],
+        "summary": "Compare prices for a product across retailers",
+        "description": "Get price comparison with best deal and savings information.",
+        "operationId": "compare_prices_api_v1_match_compare__ean__get",
+        "parameters": [
+          {
+            "name": "ean",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 13,
+              "description": "EAN/GTIN barcode",
+              "title": "Ean"
+            },
+            "description": "EAN/GTIN barcode"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Compare Prices Api V1 Match Compare  Ean  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/match/stats": {
+      "get": {
+        "tags": [
+          "matching"
+        ],
+        "summary": "Get EAN coverage statistics",
+        "description": "Get statistics on EAN availability across retailers.",
+        "operationId": "get_ean_stats_api_v1_match_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Ean Stats Api V1 Match Stats Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/shelf-prices": {
+      "get": {
+        "tags": [
+          "shelf-prices"
+        ],
+        "summary": "Search current regular (non-promotional) shelf prices",
+        "description": "Search the regular assortment by name and/or EAN, filtered by retailer: the price a retailer charges when a SKU is NOT on offer, including the many products that never are. `/match/*` only answers for an EAN you already hold; this is where you start without one.\n\n**Access.** Pro, Business or trial key in `X-API-Key`; a free key gets 403. Your plan's rate limit applies.\n\n**Filters.** Give at least one of `q`, `ean` or `retailer`. Without any, the endpoint pages through the whole collection, which is rarely what you want. `q` is matched as one phrase against the product name, case-insensitively. A phrase of 4+ characters matches anywhere in the name (`brood` finds `volkorenbrood`); a shorter one only as a whole word.\n\n**Order and paging.** Most recently observed first, then by `retailer` and `shelf_id`. The order is total, so paging with `page`/`page_size` returns every row exactly once while the data does not change. It changes nightly (roughly 01:00-02:30 Dutch time), so run a full sync outside that window. `total` is the number of matching rows.\n\n**Coverage.** Nine of the ten chains. Lidl publishes no regular prices and returns nothing. Aldi, Ekoplaza and Hoogvliet publish no barcode, so `ean` is always null there: search those by name. Prices are national per chain: there is no store level, and no loyalty-card or personal-offer prices. A row that has not been seen for 60 days drops out. See /api for the current breakdown per chain.\n\n**Freshness.** Current price only, not a history. `price_changed_at` says since when this price holds (regular prices move rarely, about 0.2% of SKUs a day); `last_seen` says when we last observed the row, normally last night. Responses are cached for up to an hour.",
+        "operationId": "search_shelf_prices_api_v1_shelf_prices_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search term, matched against the product name",
+              "title": "Q"
+            },
+            "description": "Search term, matched against the product name"
+          },
+          {
+            "name": "ean",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 8,
+                  "maxLength": 14
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact EAN/GTIN match",
+              "title": "Ean"
+            },
+            "description": "Exact EAN/GTIN match"
+          },
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by retailer slug: albert_heijn, jumbo, aldi, lidl, ekoplaza, plus, dekamarkt, hoogvliet, vomar, dirk",
+              "title": "Retailer"
+            },
+            "description": "Filter by retailer slug: albert_heijn, jumbo, aldi, lidl, ekoplaza, plus, dekamarkt, hoogvliet, vomar, dirk"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShelfPriceListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/top": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "Get Top Deals Endpoint",
+        "description": "Get top promotional deals grouped by brand.\n\nReturns two lists:\n- **top_by_percentage**: Best deals by savings percentage (e.g., 50% off)\n- **top_by_amount**: Best deals by absolute savings (e.g., save EUR 5.00)\n\nProducts are grouped by brand + promotion_type to avoid showing\n15 variants of the same Calve sauce.\n\nPass **retailer** (repeatable) to scope the lists to the shops you actually\nvisit — e.g. only the three supermarkets on your street.\n\nEach group carries a `representative_product` with `name`, `price`,\n`original_price`, `savings_percentage`, `image_url`, `product_url` and\n`valid_from`/`valid_until`. Cache the response by all means, but check\n`valid_until` before you render it: promotion weeks roll over mid-week and a\ncached deal can expire between two of your refreshes.",
+        "operationId": "get_top_deals_endpoint_api_v1_deals_top_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Number of deals per list",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Number of deals per list"
+          },
+          {
+            "name": "min_savings",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 100,
+              "minimum": 0,
+              "description": "Minimum savings percentage",
+              "default": 10.0,
+              "title": "Min Savings"
+            },
+            "description": "Minimum savings percentage"
+          },
+          {
+            "name": "retailer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Limit the lists to one or more retailers. Repeat the parameter to pass several: `?retailer=albert_heijn&retailer=jumbo`. Hyphenated slugs (`albert-heijn`) are accepted too.",
+              "title": "Retailer"
+            },
+            "description": "Limit the lists to one or more retailers. Repeat the parameter to pass several: `?retailer=albert_heijn&retailer=jumbo`. Hyphenated slugs (`albert-heijn`) are accepted too."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopDealsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/brand/{brand}": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "Get Brand Deals",
+        "description": "Get all deals for a specific brand.\n\nUse this to show all variants when a user clicks on a deal group.",
+        "operationId": "get_brand_deals_api_v1_deals_brand__brand__get",
+        "parameters": [
+          {
+            "name": "brand",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Brand"
+            }
+          },
+          {
+            "name": "promotion_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by promotion type",
+              "title": "Promotion Type"
+            },
+            "description": "Filter by promotion type"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max products to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max products to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Brand Deals Api V1 Deals Brand  Brand  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/summary": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "Deals Summary Endpoint",
+        "description": "Aggregate stats: total products, retailer count, max discount, last updated.",
+        "operationId": "deals_summary_endpoint_api_v1_deals_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/popular": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "Popular Deals Endpoint",
+        "description": "Most-clicked products from the last 7 days.",
+        "operationId": "popular_deals_endpoint_api_v1_deals_popular_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/by-type": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "Deals By Type Endpoint",
+        "description": "Products matching a promotion type keyword.",
+        "operationId": "deals_by_type_endpoint_api_v1_deals_by_type_get",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Promotion keyword, e.g. '1+1'",
+              "title": "Type"
+            },
+            "description": "Promotion keyword, e.g. '1+1'"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/new": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "New Deals Endpoint",
+        "description": "Products scraped this week, sorted by most recent.",
+        "operationId": "new_deals_endpoint_api_v1_deals_new_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/partner/signup": {
+      "post": {
+        "tags": [
+          "partners"
+        ],
+        "summary": "Request Free Key",
+        "description": "Request a free API key. We mail a link; clicking it issues the key.\n\nThe response is deliberately the same whether or not the address already has\na key — otherwise this endpoint would answer \"is X a customer of yours?\" for\nany X. The 5/hour cap is per IP and exists so nobody can use us to mail-bomb\na stranger's inbox.",
+        "operationId": "request_free_key_api_v1_partner_signup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeySignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/partner/usage": {
+      "get": {
+        "tags": [
+          "partners"
+        ],
+        "summary": "Partner Usage",
+        "description": "Partner checks their own API usage.\n\nRequires a valid partner API key in the X-API-Key header.\nReturns current rate limit usage and account info.",
+        "operationId": "partner_usage_api_v1_partner_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sla/summary": {
+      "get": {
+        "tags": [
+          "sla"
+        ],
+        "summary": "Sla Public",
+        "description": "Availability per calendar month, newest first — the same shape as the\ninternal route, minus ``refresh`` (a status page has no use for it and it\nis not a knob to hand the open internet).",
+        "operationId": "sla_public_api_v1_sla_summary_get",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 24,
+              "minimum": 1,
+              "default": 12,
+              "title": "Months"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Sla Public Api V1 Sla Summary Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BrandHub": {
+        "properties": {
+          "brand": {
+            "type": "string",
+            "title": "Brand"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "retailer_count": {
+            "type": "integer",
+            "title": "Retailer Count"
+          },
+          "promo_weeks": {
+            "type": "integer",
+            "title": "Promo Weeks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand",
+          "slug",
+          "url",
+          "retailer_count",
+          "promo_weeks"
+        ],
+        "title": "BrandHub",
+        "description": "De merkpagina die deze zoekopdracht beantwoordt.\n\nBewust een EIGEN veld en niet een rij in `results`: `/api/v1/search` is de\nsleutelloze publieke API en partners parsen die lijst als producten. Er een\nander soort object in schuiven zou hun integratie breken voor een puur\ncosmetische winst aan onze kant."
+      },
+      "CategoriesResponse": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryInfo"
+            },
+            "type": "array",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categories"
+        ],
+        "title": "CategoriesResponse"
+      },
+      "CategoryInfo": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CategoryInfo"
+      },
+      "DealGroup": {
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "promotion_type": {
+            "type": "string",
+            "title": "Promotion Type"
+          },
+          "variant_count": {
+            "type": "integer",
+            "title": "Variant Count"
+          },
+          "savings_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Percentage"
+          },
+          "savings_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Amount"
+          },
+          "retailer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retailer"
+          },
+          "representative_product": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Representative Product"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand",
+          "promotion_type",
+          "variant_count",
+          "representative_product"
+        ],
+        "title": "DealGroup",
+        "description": "A group of products with the same brand and promotion type"
+      },
+      "FilterStats": {
+        "properties": {
+          "retailers": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Retailers"
+          },
+          "statuses": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Statuses"
+          },
+          "categories": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Categories"
+          },
+          "dietary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Dietary",
+            "default": {}
+          },
+          "private_label": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Private Label",
+            "default": {}
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "retailers",
+          "statuses",
+          "categories",
+          "total"
+        ],
+        "title": "FilterStats",
+        "description": "Statistics for filter dropdowns (faceted search)"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "KeySignupRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Where we send the key link"
+          },
+          "project_name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "Project Name",
+            "description": "What you are building"
+          },
+          "site_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Url",
+            "description": "Where the data will appear (optional)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "project_name"
+        ],
+        "title": "KeySignupRequest",
+        "description": "The /api form. Three questions, all of them answerable in ten seconds."
+      },
+      "ProductListResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of products"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "Number of items per page"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "type": "array",
+            "title": "Products",
+            "description": "List of products"
+          },
+          "retailer_filter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetailerFilterNotice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only when a `retailer` value could not be applied; null otherwise. Names what was dropped and which retailers the results actually come from."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "page_size",
+          "products"
+        ],
+        "title": "ProductListResponse",
+        "description": "Paginated product list response"
+      },
+      "ProductResponse": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id",
+            "description": "Unique product identifier"
+          },
+          "base_product_id": {
+            "type": "string",
+            "title": "Base Product Id",
+            "description": "The product_id with its weekly date suffix stripped — stable across promo weeks, so it is the key to deduplicate on. Most chains mint a new product_id whenever a promotion starts (a re-promoted or daily-renewed offer therefore looks like a new product), and this is the same SKU behind those. Jumbo, Ekoplaza and Vomar carry no date suffix, so for them it equals product_id. ⚠️ Not a cross-retailer identifier and not stable at Vomar, whose ids are derived per folder and rotate weekly — use ean to match across chains."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Product name"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand name"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean",
+            "description": "EAN/GTIN barcode. Published by Albert Heijn, Jumbo and partly Ekoplaza; null for the other seven chains."
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Product image URL"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "What the product costs today: the promotional price while a promotion runs, the regular price otherwise. ⚠️ It is the price of ONE item at every chain except Aldi, which publishes the bundle total as its price — so '2 VOOR 0.79' reads price=0.79 for TWO items there. Read it together with multi_buy_quantity to tell the two apart: where that field is set and Aldi is the retailer, price buys multi_buy_quantity items. At PLUS a multipack's price is the price of the pack, which is the one unit you can buy. Use unit_price to compare across pack sizes."
+          },
+          "original_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Price",
+            "description": "Price before the promotion (the 'van' in van/voor)"
+          },
+          "discount_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Percentage",
+            "description": "Discount percentage"
+          },
+          "savings_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Amount",
+            "description": "Absolute saving in EUR"
+          },
+          "savings_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Percentage",
+            "description": "Saving as percentage"
+          },
+          "multi_buy_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multi Buy Quantity",
+            "description": "Bundle size the promotion names: 2 for '2 voor 3,-', 2 for '1+1 gratis'. Null when the promotion is not a bundle of two or more. `price` stays the price of ONE item wherever the chain lets us derive it; Aldi publishes the bundle total as its price."
+          },
+          "multi_buy_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multi Buy Price",
+            "description": "What the bundle costs in total: 3.0 for '2 voor 3,-', and for an N-th-free mechanism the amount that ratio comes to against the regular price — 10.99 for a '1+1 gratis' on a €10,99 item. This is the payable figure; `price` is the per-item view of it and is rounded to the cent, so multiplying it by `multi_buy_quantity` can miss the total by a cent in either direction. Null where no regular price was available. At Aldi this equals `price`, because Aldi publishes the bundle total as the product's price."
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "Currency code",
+            "default": "EUR"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity",
+            "description": "Product quantity/unit"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit",
+            "description": "Normalised unit (kg, l, stuk)"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price",
+            "description": "Price per normalised unit"
+          },
+          "retailer_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retailer Category",
+            "description": "The category as the retailer itself publishes it, verbatim. Every chain has its own taxonomy, so these strings are NOT comparable across retailers — use unified_category for that. Albert Heijn publishes it as 'Hoofdcategorie/Subcategorie'. Null at Aldi, Hoogvliet and Vomar, which publish no category at all; Lidl publishes the single constant 'Food' on every product, so treat that as absent too."
+          },
+          "unified_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unified Category",
+            "description": "One of the 18 unified category slugs. Derived: we take the retailer's own category where it is unambiguous and fall back to the product name otherwise — a normalisation across 10 chains, not the retailer's own taxonomy. Aldi, Hoogvliet and Vomar publish no category at all, so theirs is name-based."
+          },
+          "dietary_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dietary Tags",
+            "description": "bio | glutenvrij | lactosevrij | vegan | vegetarisch. Derived from product names and brand rules — indicative, not allergen information."
+          },
+          "private_label": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Private Label",
+            "description": "Whether this is a retailer's own brand (huismerk)"
+          },
+          "nutriscore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nutriscore",
+            "description": "Nutri-Score grade a-e (lowercase). Scraped from Albert Heijn only, but propagated to other retailers on GET /products/{id} via an exact EAN match (#979) — a product's formulation doesn't change by shop."
+          },
+          "product_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Url",
+            "description": "Product detail page URL"
+          },
+          "retailer": {
+            "type": "string",
+            "title": "Retailer",
+            "description": "Retailer name"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id",
+            "description": "Associated folder ID (legacy, unused for scraped products)"
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Number",
+            "description": "Page number in PDF"
+          },
+          "is_promotional": {
+            "type": "boolean",
+            "title": "Is Promotional",
+            "description": "Whether product is on promotion",
+            "default": false
+          },
+          "promotion_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Type",
+            "description": "Promotion mechanism, one fixed vocabulary for every retailer: `percentage` (a price cut, incl. a plain was/now price), `multi_buy` ('2 voor 6,00', '3 stuks €5'), `one_plus_one` ('1+1 gratis', '2+1 gratis', '2e halve prijs'), `volume`, `limited` ('OP=OP'), `starting` ('vanaf'). Null when the retailer's label names no mechanism we can classify."
+          },
+          "promo_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promo Group Id",
+            "description": "The retailer's own id for the promotion this product takes part in, namespaced by retailer. Every product in the same promotion carries the same value, so `GET /api/v1/products?promo_group_id=...` lists them all. Scoped to the promotion week. Null when the retailer publishes no id."
+          },
+          "promo_group_mixable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promo Group Mixable",
+            "description": "True when the retailer states the products in this group combine toward one deal (e.g. 'Kies & Mix 2 voor 6,00'); false when it states the deal applies per product. Null when the retailer does not say: a shared `promo_group_id` alone does not prove the products can be mixed."
+          },
+          "promotion_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Status",
+            "description": "Promotion status"
+          },
+          "promotional_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Promotional Keywords",
+            "description": "Promotional keywords"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From",
+            "description": "Promotion start (ISO date)"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until",
+            "description": "Promotion end (ISO date)"
+          },
+          "valid_until_estimated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until Estimated",
+            "description": "True when valid_until is OUR rolling estimate, not a date the retailer published. Today only PLUS long-running promotions: its feed carries no end date, so the end is re-extended by two days on every nightly run while the promotion stays in the feed, and can outlast the real promotion by up to two days. Null means not assessed — not 'retailer-stated'."
+          },
+          "in_store_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Store Only",
+            "description": "True when the retailer itself states the promotion holds only in the shop, not in its webshop. Filled where the chain says so: Albert Heijn's own store-only flag on the bonus segment, Lidl's availability badge and Jumbo's label ('Alleen in de winkel'); false wherever online_only is true. Null means not assessed — the other chains publish no such signal, so no claim is made."
+          },
+          "online_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Online Only",
+            "description": "True when the retailer itself states the promotion holds only in its webshop, not in the shop. Filled where the chain says so: Albert Heijn's online-only bonus segment and Jumbo's 'Alleen online' label; false wherever in_store_only is true. Null means not assessed, not 'also in the shop'."
+          },
+          "loyalty_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loyalty Price",
+            "description": "The price that holds only for members of the retailer's loyalty programme (named in loyalty_program). `price` is always what a shopper without it pays. Filled where the chain states a member price: today Lidl Plus. Null means not assessed, not 'no member price'."
+          },
+          "loyalty_program": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loyalty Program",
+            "description": "The loyalty programme loyalty_price requires, e.g. 'Lidl Plus'. Null whenever loyalty_price is null."
+          },
+          "max_per_customer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Customer",
+            "description": "The most times one customer may take this promotion, where the chain states it for this promotion: today Jumbo and DekaMarkt. Null means no promotion-specific limit is stated, not 'unlimited': several chains publish one house rule for every promotion, which is not copied onto rows. As published on 2026-09-21: Jumbo 4 per visit unless stated otherwise, PLUS 5 unless stated otherwise, Hoogvliet 8, Aldi 4 per visit (non-food)."
+          },
+          "extracted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Extracted At",
+            "description": "When the product was extracted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "base_product_id",
+          "name",
+          "price",
+          "retailer",
+          "extracted_at"
+        ],
+        "title": "ProductResponse",
+        "description": "Product response schema",
+        "example": {
+          "base_product_id": "ah_wi563637",
+          "brand": "De Ruijter",
+          "currency": "EUR",
+          "dietary_tags": [
+            "glutenvrij",
+            "vegetarisch"
+          ],
+          "discount_percentage": 22.0,
+          "ean": "8710496979880",
+          "extracted_at": "2026-07-06T06:12:54",
+          "image_url": "https://static.ah.nl/dam/product/AHI_43545239393138323539",
+          "is_promotional": true,
+          "name": "De Ruijter Chocoladehagel puur",
+          "nutriscore": "b",
+          "original_price": 3.19,
+          "price": 2.49,
+          "private_label": false,
+          "product_id": "ah_wi563637_2026-07-06",
+          "promotional_keywords": [
+            "2e halve prijs"
+          ],
+          "quantity": "380 g",
+          "retailer": "albert_heijn",
+          "retailer_category": "Ontbijtgranen/Broodbeleg zoet",
+          "unified_category": "ontbijt",
+          "unit": "kg",
+          "unit_price": 6.55,
+          "valid_from": "2026-07-06",
+          "valid_until": "2026-07-12"
+        }
+      },
+      "ProductSearchResult": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "base_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Product Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "original_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Price"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "product_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Url",
+            "description": "Product detail page URL"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "retailer": {
+            "type": "string",
+            "title": "Retailer"
+          },
+          "unified_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unified Category"
+          },
+          "dietary_tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dietary Tags"
+          },
+          "private_label": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Private Label"
+          },
+          "is_promotional": {
+            "type": "boolean",
+            "title": "Is Promotional",
+            "default": false
+          },
+          "promotional_keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotional Keywords"
+          },
+          "promotional_labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotional Labels"
+          },
+          "promotion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion"
+          },
+          "promotion_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Status"
+          },
+          "promotion_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Type",
+            "description": "Promotion mechanism, one fixed vocabulary for every retailer: `percentage` (a price cut, incl. a plain was/now price), `multi_buy` ('2 voor 6,00', '3 stuks €5'), `one_plus_one` ('1+1 gratis', '2+1 gratis', '2e halve prijs'), `volume`, `limited` ('OP=OP'), `starting` ('vanaf'). Null when the retailer's label names no mechanism we can classify."
+          },
+          "promo_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promo Group Id",
+            "description": "The retailer's own id for the promotion this product takes part in, namespaced by retailer. Every product in the same promotion carries the same value, so `GET /api/v1/products?promo_group_id=...` lists them all. Scoped to the promotion week. Null when the retailer publishes no id."
+          },
+          "promo_group_mixable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promo Group Mixable",
+            "description": "True when the retailer states the products in this group combine toward one deal (e.g. 'Kies & Mix 2 voor 6,00'); false when it states the deal applies per product. Null when the retailer does not say: a shared `promo_group_id` alone does not prove the products can be mixed."
+          },
+          "savings_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Percentage"
+          },
+          "savings_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Amount"
+          },
+          "multi_buy_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multi Buy Quantity"
+          },
+          "multi_buy_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multi Buy Price"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
+          "valid_until_estimated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until Estimated"
+          },
+          "in_store_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Store Only"
+          },
+          "online_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Online Only"
+          },
+          "loyalty_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loyalty Price"
+          },
+          "loyalty_program": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loyalty Program"
+          },
+          "max_per_customer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Customer"
+          },
+          "extracted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extracted At"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "EUR"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "match_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Type"
+          },
+          "match_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "retailer",
+          "score"
+        ],
+        "title": "ProductSearchResult"
+      },
+      "RetailerFilterNotice": {
+        "properties": {
+          "ignored": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ignored",
+            "description": "The values from `retailer` that were not applied, echoed back exactly as sent."
+          },
+          "applied": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Applied",
+            "description": "The retailers the results were actually drawn from."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ignored",
+          "applied"
+        ],
+        "title": "RetailerFilterNotice",
+        "description": "Reported when a `retailer` request could not be honoured as asked.\n\nA `retailer` naming a chain this storefront does not carry is dropped, and\nthe query falls back to every chain we do carry. Without this field that is\ninvisible: the caller asked to narrow and received the opposite, with a\nplausible-looking 200 and nothing to tell them apart."
+      },
+      "SearchResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ProductSearchResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "retailer_preference": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retailer Preference",
+            "description": "The retailers a stored preference narrowed this search to, or null when nothing was narrowed. Set only for browser callers carrying a `pp_uid` cookie, and only when the preference actually excludes a retailer — always null for API-key callers."
+          },
+          "retailer_filter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetailerFilterNotice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only when a `retailer` value could not be applied; null otherwise. Names what was dropped and which retailers the results actually come from."
+          },
+          "unmatched_terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unmatched Terms",
+            "description": "Words from `query` that match nothing on their own, so the results answer only the rest of the query. Empty when every word contributed. Only ever populated for multi-word queries that fell back to fuzzy matching — an exact-phase result requires the whole query, so it cannot have dropped a word."
+          },
+          "brand_hub": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrandHub"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The brand hub page answering this query, or null when the query does not name a brand that has one. Matched on the whole query, case- and punctuation-insensitively."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "page_size",
+          "query",
+          "results"
+        ],
+        "title": "SearchResponse"
+      },
+      "ShelfPriceItem": {
+        "properties": {
+          "retailer": {
+            "type": "string",
+            "title": "Retailer",
+            "description": "Retailer slug"
+          },
+          "shelf_id": {
+            "type": "string",
+            "title": "Shelf Id",
+            "description": "The retailer's own SKU identifier"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean",
+            "description": "EAN/GTIN, when the retailer publishes one"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Product name as the retailer states it"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand, when stated"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Current regular (non-promotional) price"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "ISO currency code",
+            "default": "EUR"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity",
+            "description": "Pack size as stated by the retailer"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price",
+            "description": "Derived price per standard unit (kg/L/piece)"
+          },
+          "product_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Url",
+            "description": "Link to the product on the retailer's own site"
+          },
+          "price_changed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Changed At",
+            "description": "When this price last actually changed (not a snapshot timestamp). ISO 8601 with the Dutch UTC offset."
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen",
+            "description": "When we last observed this row at the retailer -- the freshness indicator, what `extracted_at` is on a promotion. ISO 8601 with the Dutch UTC offset."
+          }
+        },
+        "type": "object",
+        "required": [
+          "retailer",
+          "shelf_id",
+          "name",
+          "price",
+          "last_seen"
+        ],
+        "title": "ShelfPriceItem",
+        "description": "A retailer's current REGULAR price for one SKU, not a promotion.\n\nKeyed on the retailer's own SKU (`shelf_id`), which often has no\npromotion and therefore no `product_id`. `ean` is the cross-retailer join\nkey where the retailer publishes one; Aldi, Ekoplaza and Hoogvliet do not.",
+        "example": {
+          "brand": "Boerderij Zuivel",
+          "currency": "EUR",
+          "ean": "8718452547647",
+          "last_seen": "2026-09-22T01:55:34+02:00",
+          "name": "Jumbo Boerderij Zuivel Halfvolle Melk 1 L",
+          "price": 1.95,
+          "price_changed_at": "2026-09-07T01:55:36+02:00",
+          "product_url": "https://www.jumbo.com/producten/jumbo-boerderij-zuivel-halfvolle-melk-1-l-646586FLS",
+          "quantity": "1 L",
+          "retailer": "jumbo",
+          "shelf_id": "646586FLS",
+          "unit_price": 1.95
+        }
+      },
+      "ShelfPriceListResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total matching rows"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "Current page number"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "Number of items per page"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShelfPriceItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Matching shelf-price rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "page_size",
+          "items"
+        ],
+        "title": "ShelfPriceListResponse",
+        "description": "Paginated shelf-price search response."
+      },
+      "TopDealsResponse": {
+        "properties": {
+          "top_by_percentage": {
+            "items": {
+              "$ref": "#/components/schemas/DealGroup"
+            },
+            "type": "array",
+            "title": "Top By Percentage"
+          },
+          "top_by_amount": {
+            "items": {
+              "$ref": "#/components/schemas/DealGroup"
+            },
+            "type": "array",
+            "title": "Top By Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "top_by_percentage",
+          "top_by_amount"
+        ],
+        "title": "TopDealsResponse",
+        "description": "Response with top deals by percentage and amount"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Partner key, sent as the `X-API-Key` header. Required on `/match/*` and `/price-history`, which additionally need a paid plan (trial, pro or business). Optional everywhere else — the Gratis tier needs no key — but sending it raises your rate limit from the anonymous per-endpoint caps to your plan's. Request one at /api."
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://www.prijsprofeet.nl",
+      "description": "Productie"
+    }
+  ]
+}

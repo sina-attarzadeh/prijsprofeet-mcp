@@ -1,0 +1,52 @@
+# Render blueprint. Apply with: New > Blueprint > point at this repo.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: prijsprofeet-mcp
+    runtime: docker
+
+    # `free` is the default: 512 MB at $0. The cost is that a Free web service
+    # sleeps after 15 minutes without traffic and needs about a minute to wake,
+    # which is longer than most MCP clients will wait for `tools/list`. The
+    # client sees a timeout, not a slow server, and there is no way to fix it
+    # from the server side. Work around it by raising the client timeout to
+    # ~90s, or by polling /healthz before you connect.
+    #
+    # `0.5c-512mb` (formerly `starter`, $7/month) never sleeps, which makes the
+    # cold start go away. Swap the two lines if the endpoint has to be up the
+    # moment a client opens a session.
+    plan: free
+#    plan: 0.5c-512mb
+
+    # Frankfurt keeps the round trip to www.prijsprofeet.nl (Amsterdam) short.
+    # Region cannot be changed after the first deploy.
+    region: frankfurt
+
+    # Unauthenticated on purpose: Render's health check would fail on a 401.
+    healthCheckPath: /healthz
+
+    autoDeployTrigger: checksPass
+
+    envVars:
+      # The image defaults to stdio, which is wrong for a web service.
+      - key: PRIJSPROFEET_TRANSPORT
+        value: http
+
+      # PRIJSPROFEET_HTTP_PORT is intentionally unset. The server reads Render's
+      # injected PORT when it is unset and falls back to 3000; setting it here
+      # would override PORT and the service would deploy but never be reachable.
+
+      # 20 tools. Change to `pro` if you upgrade the PrijsProfeet key.
+      - key: PRIJSPROFEET_PLAN
+        value: free
+
+      # Render generates a 256-bit secret and keeps it out of this file. Read it
+      # from Dashboard > Environment to configure your MCP client.
+      - key: MCP_AUTH_TOKEN
+        generateValue: true
+
+      # `sync: false` makes Render prompt for this on first deploy, so the
+      # partner key is never written to the repo. Optional: without it the
+      # server runs on the anonymous Gratis tier.
+      - key: PRIJSPROFEET_API_KEY
+        sync: false

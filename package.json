@@ -1,0 +1,31 @@
+{
+  "name": "prijsprofeet-mcp",
+  "version": "1.0.0",
+  "description": "Dockerized MCP server for the PrijsProfeet supermarket offers API",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "prijsprofeet-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "start": "node dist/index.js",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "inspect": "node scripts/inspect-tools.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "typescript": "5.7.2"
+  }
+}

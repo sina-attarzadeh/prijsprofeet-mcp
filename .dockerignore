@@ -1,0 +1,14 @@
+# Build context hygiene only. tsconfig.json and scripts/ are required by the
+# `build` stage, so they must stay in the context.
+node_modules
+dist
+.git
+.gitignore
+.idea
+.env
+.env.*
+!.env.example
+*.log
+Dockerfile
+docker-compose.yml
+README.md
