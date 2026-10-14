@@ -18,14 +18,14 @@ const CATALOG: Record<string, { name: string; description: string; readOnly?: bo
   'GET /api/v1/search': {
     name: 'search',
     description: [
-      'Search supermarket offers across the 10 Dutch chains (Albert Heijn, Aldi, DekaMarkt, Dirk, Ekoplaza, Hoogvliet, Jumbo, Lidl, PLUS, Vomar).',
+      'Search supermarket offers across 10+ Dutch supermarket chains (Albert Heijn, Jumbo, Lidl, Aldi, PLUS, Dirk, Ekoplaza, Poiesz, SPAR, DekaMarkt, Hoogvliet, Vomar and more).',
       'Omit `q` or pass `*` to browse the whole catalogue.',
       'The search term argument is `q`, not `query` — `query` belongs to the older `pp_search_products_by_name`, which puts it in the URL path.',
       '',
       'How to read a row: `promotion_status` decides what the price means. `active` = on offer right now, `upcoming` = starts next week, `shelf` = the regular price, `historical` = the last price seen, up to 60 days old.',
       'Taking the lowest `price` across rows can therefore return a price nobody is charging today — filter on `promotion_status` (or leave `current_only`-style filtering to the caller) before quoting a best price.',
       '',
-      'Retailer slugs: albert_heijn, jumbo, aldi, lidl, ekoplaza, plus, dekamarkt, hoogvliet, vomar, dirk.',
+      'Retailer slugs: albert_heijn, jumbo, aldi, lidl, ekoplaza, plus, poiesz, spar, nettorama, boni, coop, gewoon_coop, mcd, boons_markt, dagwinkel, dekamarkt, hoogvliet, vomar, dirk.',
       'Category slugs are not free text: call `pp_get_categories` first to map the user\'s word to a slug.',
       'Keep `page_size` modest; page through rather than asking for 100 rows when a question needs 3.',
     ].join('\n'),
@@ -65,7 +65,7 @@ const CATALOG: Record<string, { name: string; description: string; readOnly?: bo
   'GET /api/v1/products/retailer/{retailer}': {
     name: 'get_products_by_retailer',
     description:
-      'Every product from one retailer, paginated. Takes a retailer slug (albert_heijn, jumbo, aldi, lidl, ekoplaza, plus, dekamarkt, hoogvliet, vomar, dirk), not a display name.',
+      'Every product from one retailer, paginated. Takes a retailer slug (albert_heijn, jumbo, aldi, lidl, ekoplaza, plus, poiesz, spar, nettorama, boni, coop, gewoon_coop, mcd, boons_markt, dagwinkel, dekamarkt, hoogvliet, vomar, dirk), not a display name.',
   },
 
   'GET /api/v1/products/promotional/all': {
@@ -118,7 +118,7 @@ const CATALOG: Record<string, { name: string; description: string; readOnly?: bo
     name: 'match_by_ean',
     description: [
       'Find the same EAN at every retailer, with each retailer\'s price. Requires a paid plan (trial, Pro or Business).',
-      'EAN matching is exact where EANs exist. Aldi, Lidl, Hoogvliet and Vomar do not publish barcodes at all, so for them the API falls back to matching on name, brand and category — indicative, not the same product. Say so when you report those rows.',
+      'EAN matching is exact where EANs exist. Not every chain publishes barcodes (Aldi, Lidl, Vomar and the folder-only chains do not; coverage per chain: https://www.prijsprofeet.nl/supermarkt-aanbiedingen-api/#ean-dekking), so for those the API falls back to matching on name, brand and category — indicative, not the same product. Say so when you report those rows.',
       'A chain with nothing on offer is not dropped: it comes back with `promotion_status: "shelf"` and its regular price. `current_only=true` keeps only prices that can actually be bought today, at the cost of coverage.',
     ].join('\n'),
   },

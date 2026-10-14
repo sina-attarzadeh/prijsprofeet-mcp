@@ -16,7 +16,7 @@ export function buildInstructions(toolNames: ReadonlySet<string>): string {
   const has = (...names: string[]): boolean => names.some((name) => toolNames.has(name));
 
   const lines = [
-    'Live supermarket offers from the 10 Dutch chains, served by the PrijsProfeet API.',
+    'Live supermarket offers from 10+ Dutch supermarket chains, served by the PrijsProfeet API.',
     '',
     'Start with `pp_search` for anything product-shaped, `pp_get_categories` to resolve a category word to a slug, and `pp_get_deals_summary` to check how fresh the data is.',
     '',
@@ -29,7 +29,7 @@ export function buildInstructions(toolNames: ReadonlySet<string>): string {
     lines.push(
       '',
       'Cross-retailer matching and price history need a Pro plan; a 402/403 on those tools means the plan, not a bad request.',
-      'EAN matching is exact only where EANs exist — Aldi, Lidl, Hoogvliet and Vomar publish no barcodes, so their rows in a match are name-based approximations.',
+      'EAN matching is exact only where EANs exist — not every chain publishes barcodes (Aldi, Lidl, Vomar and the folder-only chains do not), so those rows in a match are name-based approximations.',
     );
   }
 

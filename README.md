@@ -5,8 +5,8 @@ Unofficial MCP server for the PrijsProfeet API
 > For official information, see the [PrijsProfeet API](https://www.prijsprofeet.nl/api) and [API voorwaarden](https://www.prijsprofeet.nl/api-voorwaarden).  
 
 A Dockerized [MCP](https://modelcontextprotocol.io) server for the [PrijsProfeet](https://www.prijsprofeet.nl) API:
-live offers from 10 Dutch supermarket chains (Albert Heijn, Aldi, DekaMarkt, Dirk, Ekoplaza, Hoogvliet,
-Jumbo, Lidl, PLUS, Vomar) as one normalised JSON API.
+live offers from 10+ Dutch supermarket chains (Albert Heijn, Jumbo, Lidl, Aldi, PLUS, Dirk, Ekoplaza,
+Poiesz, SPAR, DekaMarkt, Hoogvliet, Vomar and more) as one normalised JSON API.
 
 The 25 tools are generated from the OpenAPI document at `https://www.prijsprofeet.nl/openapi.json` (a copy is
 bundled in the image, because the live one sits behind Cloudflare and is not reachable from a server). Argument
@@ -354,7 +354,8 @@ on this, but it is the single easiest mistake to make with this API.
 there is no way around it: the only endpoint that exposes regular non-promotion prices, `pp_search_shelf_prices`,
 is Pro-gated along with the matching tools. On Pro you get both that and cross-retailer comparison.
 
-**Not every chain publishes an EAN.** Aldi, Lidl, Hoogvliet and Vomar do not, so for those chains the cross-retailer
+**Not every chain publishes an EAN.** Aldi, Lidl, Vomar and the folder-only chains do not
+([coverage per chain](https://www.prijsprofeet.nl/supermarkt-aanbiedingen-api/#ean-dekking)), so for those chains the cross-retailer
 match (Pro) falls back to name, brand and category. Those rows are indicative, not product identity.
 
 **Pro-gated tools are withheld, not broken.** On the default `free` plan the six tools in
